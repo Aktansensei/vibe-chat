@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from models import Message
 
 
@@ -48,6 +49,33 @@ class MessageRepository:
             .order_by(Message.created_at.desc())
             .first()
         )
+
+    def get_by_id(self, message_id: int) -> Message | None:
+        return self.db.query(Message).filter(Message.id == message_id).first()
+
+    def toggle_reaction(self, message_id: int, emoji: str, user_id: int) -> Message | None:
+        message = self.get_by_id(message_id)
+        if not message:
+            return None
+
+        reactions = dict(message.reactions or {})
+        users = list(reactions.get(emoji, []))
+
+        if user_id in users:
+            users.remove(user_id)
+        else:
+            users.append(user_id)
+
+        if users:
+            reactions[emoji] = users
+        else:
+            reactions.pop(emoji, None)
+
+        message.reactions = reactions
+        flag_modified(message, "reactions")
+        self.db.commit()
+        self.db.refresh(message)
+        return message
 
     def get_count(self, user1_id: int, user2_id: int) -> int:
         return (

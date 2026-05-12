@@ -20,6 +20,7 @@ class MessageResponse(MessageBase):
     receiver_id: int
     message_type: str
     media_data: str | None
+    reactions: dict
     created_at: datetime
 
 

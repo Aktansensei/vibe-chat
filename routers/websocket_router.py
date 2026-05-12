@@ -78,6 +78,15 @@ async def websocket_endpoint(
                         {"type": "stop_typing", "sender_id": user_id},
                     )
 
+                elif event == "reaction":
+                    message_id = int(data["message_id"])
+                    emoji = data["emoji"]
+                    updated = MessageService(db).toggle_reaction(message_id, emoji, user_id)
+                    payload = updated.model_dump(mode="json")
+                    other_id = updated.receiver_id if updated.sender_id == user_id else updated.sender_id
+                    await manager.send_to(user_id, {"type": "reaction_update", **payload})
+                    await manager.send_to(other_id, {"type": "reaction_update", **payload})
+
                 else:
                     msg_data = MessageCreate(
                         content=data.get("content", ""),

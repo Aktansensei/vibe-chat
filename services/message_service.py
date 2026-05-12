@@ -48,6 +48,12 @@ class MessageService:
             total=total,
         )
 
+    def toggle_reaction(self, message_id: int, emoji: str, user_id: int) -> MessageResponse:
+        message = self.msg_repo.toggle_reaction(message_id, emoji, user_id)
+        if not message:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Message {message_id} not found")
+        return MessageResponse.model_validate(message)
+
     def get_recent_chats(self, user_id: int) -> list[RecentChat]:
         if not self.user_repo.get_by_id(user_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {user_id} not found")

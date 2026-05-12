@@ -253,6 +253,46 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #send-btn:hover { background: var(--accent-h); }
 #send-btn:active { transform: scale(.92); }
 
+/* ── Reactions ── */
+.reactions {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin: 2px 6px 6px;
+}
+.msg-row.sent .reactions  { justify-content: flex-end; }
+.msg-row.received .reactions { justify-content: flex-start; }
+
+.reaction-pill {
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px 8px;
+  font-size: 13px; cursor: pointer; color: var(--text);
+  transition: background .12s, border-color .12s, transform .1s;
+  display: flex; align-items: center; gap: 3px;
+}
+.reaction-pill:hover { background: var(--bg-hover); transform: scale(1.05); }
+.reaction-pill.mine { background: rgba(88,101,242,.2); border-color: var(--accent); }
+
+/* Reaction context menu */
+.reaction-menu {
+  position: fixed; z-index: 500;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 8px;
+  display: flex; gap: 2px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  animation: pop-in .12s ease;
+}
+@keyframes pop-in {
+  from { transform: scale(.85); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.reaction-menu button {
+  background: none; border: none; font-size: 22px;
+  cursor: pointer; border-radius: 50%;
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s, transform .15s;
+}
+.reaction-menu button:hover { background: var(--bg-hover); transform: scale(1.25); }
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .sidebar { width: 240px; min-width: 200px; }

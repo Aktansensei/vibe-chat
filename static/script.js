@@ -169,6 +169,9 @@ function connectWS() {
         upsertRecentChat(msg);
         renderSidebar();
         break;
+      case 'reaction_update':
+        updateMessageReactions(msg);
+        break;
     }
   });
 
@@ -376,10 +379,13 @@ function renderHistory(messages) {
   scrollBottom();
 }
 
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
+
 function appendMessage(msg, scroll = true) {
   const sent = msg.sender_id === me.id;
   const row = document.createElement('div');
   row.className = `msg-row ${sent ? 'sent' : 'received'}`;
+  row.dataset.messageId = msg.id;
 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
@@ -393,12 +399,79 @@ function appendMessage(msg, scroll = true) {
     bubble.textContent = msg.content;
   }
 
+  bubble.addEventListener('contextmenu', e => { e.preventDefault(); showReactionMenu(e, msg.id); });
+
   const time = document.createElement('div');
   time.className = 'msg-time'; time.textContent = formatTime(msg.created_at);
 
   row.append(bubble, time);
   messagesEl.appendChild(row);
+  renderReactions(msg.reactions || {}, msg.id, row);
   if (scroll) scrollBottom();
+}
+
+// ── Reaction context menu ──
+function showReactionMenu(e, messageId) {
+  document.getElementById('reaction-menu')?.remove();
+
+  const menu = document.createElement('div');
+  menu.id = 'reaction-menu';
+  menu.className = 'reaction-menu';
+
+  REACTION_EMOJIS.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.textContent = emoji;
+    btn.title = emoji;
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      sendReaction(messageId, emoji);
+      menu.remove();
+    });
+    menu.appendChild(btn);
+  });
+
+  document.body.appendChild(menu);
+
+  // Smart positioning — keep inside viewport
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const mw = 290, mh = 52;
+  menu.style.left = Math.min(e.clientX, vw - mw - 8) + 'px';
+  menu.style.top  = (e.clientY + mh + 8 > vh ? e.clientY - mh - 8 : e.clientY + 8) + 'px';
+
+  setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+}
+
+function sendReaction(messageId, emoji) {
+  if (ws?.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ type: 'reaction', message_id: messageId, emoji }));
+}
+
+// ── Render reactions under a message row ──
+function renderReactions(reactions, messageId, row) {
+  row.querySelector('.reactions')?.remove();
+  if (!reactions || Object.keys(reactions).length === 0) return;
+
+  const container = document.createElement('div');
+  container.className = 'reactions';
+
+  Object.entries(reactions).forEach(([emoji, userIds]) => {
+    const pill = document.createElement('button');
+    pill.className = 'reaction-pill' + (userIds.includes(me.id) ? ' mine' : '');
+    pill.innerHTML = `<span>${emoji}</span><span>${userIds.length}</span>`;
+    pill.title = `${emoji} ${userIds.length}`;
+    pill.addEventListener('click', () => sendReaction(messageId, emoji));
+    container.appendChild(pill);
+  });
+
+  // Insert after time element so reactions appear below it
+  const time = row.querySelector('.msg-time');
+  time ? time.insertAdjacentElement('afterend', container) : row.appendChild(container);
+}
+
+// ── Update reactions in-place for an existing message ──
+function updateMessageReactions(msg) {
+  const row = messagesEl.querySelector(`[data-message-id="${msg.id}"]`);
+  if (row) renderReactions(msg.reactions || {}, msg.id, row);
 }
 
 function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }

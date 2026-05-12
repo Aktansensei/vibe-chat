@@ -17,6 +17,7 @@ def run_migrations() -> None:
         "ALTER TABLE messages ADD COLUMN message_type VARCHAR(10) NOT NULL DEFAULT 'text'",
         "ALTER TABLE messages ADD COLUMN media_data TEXT",
         "ALTER TABLE users ADD COLUMN last_seen DATETIME",
+        "ALTER TABLE messages ADD COLUMN reactions TEXT NOT NULL DEFAULT '{}'",
     ]
     with engine.connect() as conn:
         for sql in migrations:
