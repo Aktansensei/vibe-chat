@@ -12,7 +12,7 @@
 
 **🌐 Live Demo → [vibe-chat-production-ba9b.up.railway.app](https://vibe-chat-production-ba9b.up.railway.app)**  
 **📦 GitHub → [github.com/Aktansensei/vibe-chat](https://github.com/Aktansensei/vibe-chat)**  
-**🎥 YouTube Demo → _coming soon_**
+**🎥 YouTube Demo → [link](https://youtu.be/EdbUe3TeF1w)**
 
 ---
 
