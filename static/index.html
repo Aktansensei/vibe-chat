@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vibe Chat</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- Registration overlay -->
+  <div id="auth-overlay" class="overlay">
+    <div class="auth-card">
+      <div class="auth-logo">💬</div>
+      <h1>Vibe Chat</h1>
+      <p class="auth-subtitle">Enter a username to get started</p>
+      <form id="auth-form">
+        <input
+          id="auth-input"
+          type="text"
+          placeholder="Your username"
+          maxlength="50"
+          autocomplete="off"
+          autofocus
+        />
+        <button type="submit">Join</button>
+      </form>
+      <p id="auth-error" class="auth-error"></p>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app" class="app hidden">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="current-user">
+          <div class="avatar" id="my-avatar"></div>
+          <span id="my-username"></span>
+        </div>
+        <button id="logout-btn" class="icon-btn" title="Change user">↩</button>
+      </div>
+
+      <div class="search-wrap">
+        <input id="search-input" type="text" placeholder="Search users…" autocomplete="off" />
+      </div>
+
+      <div class="users-label">People</div>
+      <ul id="users-list" class="users-list"></ul>
+    </aside>
+
+    <!-- Chat area -->
+    <main class="chat">
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">💬</div>
+        <p>Select someone to start chatting</p>
+      </div>
+
+      <!-- Conversation -->
+      <div id="conversation" class="conversation hidden">
+        <header class="chat-header">
+          <div class="avatar" id="peer-avatar"></div>
+          <div class="chat-header-info">
+            <span id="peer-name"></span>
+            <span id="peer-status" class="peer-status"></span>
+          </div>
+        </header>
+
+        <div id="messages" class="messages"></div>
+
+        <form id="msg-form" class="msg-form">
+          <input
+            id="msg-input"
+            type="text"
+            placeholder="Type a message…"
+            autocomplete="off"
+          />
+          <button type="submit" id="send-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
