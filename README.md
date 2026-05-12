@@ -5,24 +5,30 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![Deployed on Railway](https://img.shields.io/badge/Railway-deployed-6366f1?style=flat&logo=railway&logoColor=white)](https://vibe-chat-production-ba9b.up.railway.app)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
+
+<br/>
+
+**🌐 Live Demo → [vibe-chat-production-ba9b.up.railway.app](https://vibe-chat-production-ba9b.up.railway.app)**  
+**📦 GitHub → [github.com/Aktansensei/vibe-chat](https://github.com/Aktansensei/vibe-chat)**  
+**🎥 YouTube Demo → _coming soon_**
 
 ---
 
 ## 📸 Screenshots
 
-| Login | Chat |
-|-------|------|
-| ![Login screen](https://via.placeholder.com/480x300/0f1117/5865f2?text=Login+Screen) | ![Chat screen](https://via.placeholder.com/480x300/0f1117/5865f2?text=Chat+Screen) |
+> Open the live demo and take a screenshot, then replace the images below:
+> `docs/screenshot-login.png` and `docs/screenshot-chat.png`
 
----
+| Login Screen | Chat Screen |
+|:---:|:---:|
+| ![Login](docs/screenshot-login.png) | ![Chat](docs/screenshot-chat.png) |
 
-## 🔗 Links
-
-| | |
-|---|---|
-| 🌐 **Live Demo** | _coming soon_ |
-| 🎥 **YouTube Demo** | _coming soon_ |
+<!-- Temporary placeholders until screenshots are added:
+![Login](https://via.placeholder.com/520x320/0f1117/5865f2?text=Login+Screen)
+![Chat](https://via.placeholder.com/520x320/0f1117/5865f2?text=Chat+Screen)
+-->
 
 ---
 
@@ -31,12 +37,13 @@
 - ✅ **Real-time messaging** via WebSocket — no page refresh needed
 - ✅ **Persistent history** — all messages stored in SQLite
 - ✅ **Instant registration** — just type a username, no password required
-- ✅ **Session restore** — user stays logged in via localStorage
+- ✅ **Session restore** — stays logged in via localStorage
 - ✅ **Online delivery** — messages delivered instantly if recipient is connected
-- ✅ **Unread badges** — sidebar shows unread message count
-- ✅ **User search** — filter contacts by username
-- ✅ **Dark mode UI** — modern minimal design out of the box
+- ✅ **Unread badges** — sidebar shows unread message count per contact
+- ✅ **User search** — filter contacts by username in real time
+- ✅ **Dark mode UI** — modern minimal design, no frameworks
 - ✅ **Layered architecture** — clean separation of routers / services / repositories
+- ✅ **Deployed on Railway** — live and accessible 24/7
 
 ---
 
@@ -51,6 +58,7 @@
 | **Validation** | [Pydantic](https://docs.pydantic.dev) v2 |
 | **Server** | [Uvicorn](https://www.uvicorn.org) + uvloop |
 | **Frontend** | Vanilla JS + CSS (no frameworks) |
+| **Hosting** | [Railway](https://railway.app) |
 
 ---
 
@@ -60,11 +68,11 @@
 
 - Python 3.11+
 
-### Installation
+### Run locally
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-username/vibe-chat.git
+git clone https://github.com/Aktansensei/vibe-chat.git
 cd vibe-chat
 
 # 2. Create and activate virtual environment
@@ -81,7 +89,7 @@ uvicorn main:app --reload
 
 Open **http://localhost:8000** in your browser.
 
-> To test real-time messaging, open the same URL in two different browser tabs and register as two different users.
+> 💡 To test real-time messaging, open the same URL in two browser tabs and register as two different users.
 
 ---
 
@@ -114,21 +122,21 @@ vibe_chat/
 │   ├── message_router.py
 │   └── websocket_router.py
 │
-└── static/                  # Frontend (served at /static)
+└── static/                  # Frontend (served at /)
     ├── index.html
     ├── style.css
     └── script.js
 ```
 
-### Architecture Rules
+### Architecture contract
 
 ```
 routers → services → repositories → models
 ```
 
-- **Routers** handle HTTP/WebSocket only — no business logic
-- **Services** contain all business rules — no SQL
-- **Repositories** contain all SQL — no business logic
+- **Routers** — HTTP/WebSocket only, no business logic
+- **Services** — all business rules, no SQL
+- **Repositories** — all SQL, no business logic
 
 ---
 
@@ -139,7 +147,7 @@ routers → services → repositories → models
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/users/register` | Register a new user |
-| `GET` | `/users/` | List all users (optional `?search=`) |
+| `GET` | `/users/` | List all users (`?search=` optional) |
 | `GET` | `/users/{id}` | Get user by ID |
 | `GET` | `/users/by-username/{username}` | Get user by username |
 
@@ -152,22 +160,24 @@ routers → services → repositories → models
 
 ### WebSocket
 
-| Endpoint | Description |
-|----------|-------------|
-| `WS /ws/{user_id}` | Real-time connection |
+```
+WS /ws/{user_id}
+```
 
-**Send format:**
+**Send:**
 ```json
 { "content": "Hello!", "receiver_id": 2 }
 ```
 
-**Receive format:**
+**Receive:**
 ```json
 { "type": "sent" | "received" | "error", "id": 1, "content": "Hello!", "sender_id": 1, "receiver_id": 2, "created_at": "..." }
 ```
+
+> Full interactive docs available at [`/docs`](https://vibe-chat-production-ba9b.up.railway.app/docs)
 
 ---
 
 ## 📄 License
 
-MIT © 2026
+MIT © 2026 — [Aktansensei](https://github.com/Aktansensei)
