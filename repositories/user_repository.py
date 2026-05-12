@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
 from models import User
 
@@ -21,3 +22,7 @@ class UserRepository:
 
     def get_all(self) -> list[User]:
         return self.db.query(User).all()
+
+    def update_last_seen(self, user_id: int, dt: datetime) -> None:
+        self.db.query(User).filter(User.id == user_id).update({"last_seen": dt})
+        self.db.commit()

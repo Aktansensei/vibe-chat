@@ -15,3 +15,4 @@ class UserResponse(UserBase):
 
     id: int
     created_at: datetime
+    last_seen: datetime | None

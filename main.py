@@ -3,10 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from database import Base, engine
+from database import Base, engine, run_migrations
 from routers import user_router, message_router, websocket_router
 
 Base.metadata.create_all(bind=engine)
+run_migrations()
 
 app = FastAPI(title="Vibe Chat", version="1.0.0")
 
