@@ -1,12 +1,12 @@
-# 💬 Vibe Chat
+# 💬 Vibe Chat — Real-time Messaging App
 
-> A clean, real-time chat application built with FastAPI and WebSockets.
+> A clean, modern chat application built with FastAPI and WebSockets. Inspired by WhatsApp.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite&logoColor=white)](https://sqlite.org)
-[![Deployed on Railway](https://img.shields.io/badge/Railway-deployed-6366f1?style=flat&logo=railway&logoColor=white)](https://vibe-chat-production-ba9b.up.railway.app)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
+[![Railway](https://img.shields.io/badge/Railway-deployed-6366f1?style=flat&logo=railway&logoColor=white)](https://vibe-chat-production-ba9b.up.railway.app)
+[![License](https://img.shields.io/badge/License-MIT-22c55e?style=flat)](LICENSE)
 
 <br/>
 
@@ -18,32 +18,26 @@
 
 ## 📸 Screenshots
 
-> Open the live demo and take a screenshot, then replace the images below:
-> `docs/screenshot-login.png` and `docs/screenshot-chat.png`
+> Replace with real screenshots: save as `docs/screenshot-login.png` and `docs/screenshot-chat.png`
 
-| Login Screen | Chat Screen |
+| Login | Chat |
 |:---:|:---:|
 | ![Login](docs/screenshot-login.png) | ![Chat](docs/screenshot-chat.png) |
-
-<!-- Temporary placeholders until screenshots are added:
-![Login](https://via.placeholder.com/520x320/0f1117/5865f2?text=Login+Screen)
-![Chat](https://via.placeholder.com/520x320/0f1117/5865f2?text=Chat+Screen)
--->
 
 ---
 
 ## ✨ Features
 
-- ✅ **Real-time messaging** via WebSocket — no page refresh needed
-- ✅ **Persistent history** — all messages stored in SQLite
-- ✅ **Instant registration** — just type a username, no password required
-- ✅ **Session restore** — stays logged in via localStorage
-- ✅ **Online delivery** — messages delivered instantly if recipient is connected
-- ✅ **Unread badges** — sidebar shows unread message count per contact
-- ✅ **User search** — filter contacts by username in real time
-- ✅ **Dark mode UI** — modern minimal design, no frameworks
-- ✅ **Layered architecture** — clean separation of routers / services / repositories
-- ✅ **Deployed on Railway** — live and accessible 24/7
+- ⚡ **Real-time chat with WebSockets** — instant message delivery, no polling
+- 🖼 **Image sharing** — send photos directly in chat (up to 2 MB)
+- 😂 **Message reactions** — right-click any message to react: 👍 ❤️ 😂 😮 😢 🔥
+- ✍️ **Typing indicators** — animated dots when the other person is typing
+- 🟢 **Online / Last seen status** — know when your contact is active
+- 🔴 **Unread message counters** — badge per contact in the sidebar
+- 💬 **Recent chat list** — last message preview with timestamp
+- 📎 **File attachment button** — paperclip icon for quick image sending
+- 🌙 **Clean modern dark UI** — no frameworks, pure CSS + vanilla JS
+- 🏗 **Layered architecture** — strict routers → services → repositories separation
 
 ---
 
@@ -57,7 +51,7 @@
 | **Database** | SQLite |
 | **Validation** | [Pydantic](https://docs.pydantic.dev) v2 |
 | **Server** | [Uvicorn](https://www.uvicorn.org) + uvloop |
-| **Frontend** | Vanilla JS + CSS (no frameworks) |
+| **Frontend** | Vanilla JS + CSS (zero dependencies) |
 | **Hosting** | [Railway](https://railway.app) |
 
 ---
@@ -89,7 +83,7 @@ uvicorn main:app --reload
 
 Open **http://localhost:8000** in your browser.
 
-> 💡 To test real-time messaging, open the same URL in two browser tabs and register as two different users.
+> 💡 To test real-time features, open the app in two browser tabs (or normal + incognito) and register as two different users.
 
 ---
 
@@ -98,12 +92,12 @@ Open **http://localhost:8000** in your browser.
 ```
 vibe_chat/
 ├── main.py                  # FastAPI app, CORS, router registration
-├── database.py              # SQLite engine, Base, get_db dependency
+├── database.py              # SQLite engine, Base, get_db, run_migrations
 ├── requirements.txt
 │
 ├── models/                  # SQLAlchemy ORM models
-│   ├── user.py
-│   └── message.py
+│   ├── user.py              # User (id, username, last_seen)
+│   └── message.py           # Message (content, type, media, reactions)
 │
 ├── schemas/                 # Pydantic request/response schemas
 │   ├── user.py
@@ -156,25 +150,28 @@ routers → services → repositories → models
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/messages/?sender_id={id}` | Send a message |
+| `GET` | `/messages/recent?user_id={id}` | Get recent chat list |
 | `GET` | `/messages/{other_id}?user_id={id}` | Get chat history |
 
-### WebSocket
+### WebSocket — `WS /ws/{user_id}`
 
-```
-WS /ws/{user_id}
-```
+| Event (client → server) | Payload |
+|---|---|
+| Send message | `{ content, receiver_id, message_type, media_data? }` |
+| Typing | `{ type: "typing", receiver_id }` |
+| Stop typing | `{ type: "stop_typing", receiver_id }` |
+| Reaction | `{ type: "reaction", message_id, emoji }` |
 
-**Send:**
-```json
-{ "content": "Hello!", "receiver_id": 2 }
-```
+| Event (server → client) | Description |
+|---|---|
+| `sent` | Confirmation to sender |
+| `received` | New message for recipient |
+| `reaction_update` | Reaction changed on a message |
+| `typing` / `stop_typing` | Typing indicator |
+| `status` | User came online / went offline |
+| `online_list` | Full list of online users on connect |
 
-**Receive:**
-```json
-{ "type": "sent" | "received" | "error", "id": 1, "content": "Hello!", "sender_id": 1, "receiver_id": 2, "created_at": "..." }
-```
-
-> Full interactive docs available at [`/docs`](https://vibe-chat-production-ba9b.up.railway.app/docs)
+> Full interactive docs: [/docs](https://vibe-chat-production-ba9b.up.railway.app/docs)
 
 ---
 
