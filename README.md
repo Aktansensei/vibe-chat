@@ -18,7 +18,6 @@
 
 ## 📸 Screenshots
 
-> Replace with real screenshots: save as `docs/screenshot-login.png` and `docs/screenshot-chat.png`
 
 | Login | Chat |
 |:---:|:---:|
