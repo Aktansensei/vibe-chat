@@ -1,37 +1,49 @@
-const API = '';  // same origin
+const API = '';
 
 // ── State ──
-let me = null;       // { id, username }
-let peer = null;     // { id, username }
+let me = null;
+let peer = null;
 let ws = null;
 let users = [];
+let recentChats = [];
+let unreadCounts = {};
+let onlineUsers = new Set();
+let sidebarMode = 'chats';
+let myTypingTimer = null;
+let typingHideTimer = null;
 
 // ── DOM ──
-const authOverlay  = document.getElementById('auth-overlay');
-const authForm     = document.getElementById('auth-form');
-const authInput    = document.getElementById('auth-input');
-const authError    = document.getElementById('auth-error');
-const app          = document.getElementById('app');
-const myAvatar     = document.getElementById('my-avatar');
-const myUsername   = document.getElementById('my-username');
-const logoutBtn    = document.getElementById('logout-btn');
-const searchInput  = document.getElementById('search-input');
-const usersList    = document.getElementById('users-list');
-const emptyState   = document.getElementById('empty-state');
-const conversation = document.getElementById('conversation');
-const peerAvatar   = document.getElementById('peer-avatar');
-const peerName     = document.getElementById('peer-name');
-const peerStatus   = document.getElementById('peer-status');
-const messagesEl   = document.getElementById('messages');
-const msgForm      = document.getElementById('msg-form');
-const msgInput     = document.getElementById('msg-input');
-const sendBtn      = document.getElementById('send-btn');
+const authOverlay    = document.getElementById('auth-overlay');
+const authForm       = document.getElementById('auth-form');
+const authInput      = document.getElementById('auth-input');
+const authError      = document.getElementById('auth-error');
+const app            = document.getElementById('app');
+const myAvatar       = document.getElementById('my-avatar');
+const myUsername     = document.getElementById('my-username');
+const logoutBtn      = document.getElementById('logout-btn');
+const newChatBtn     = document.getElementById('new-chat-btn');
+const searchInput    = document.getElementById('search-input');
+const usersList      = document.getElementById('users-list');
+const sidebarLabel   = document.getElementById('sidebar-label');
+const emptyState     = document.getElementById('empty-state');
+const conversation   = document.getElementById('conversation');
+const peerAvatar     = document.getElementById('peer-avatar');
+const peerOnlineDot  = document.getElementById('peer-online-dot');
+const peerName       = document.getElementById('peer-name');
+const peerStatus     = document.getElementById('peer-status');
+const messagesEl     = document.getElementById('messages');
+const msgForm        = document.getElementById('msg-form');
+const msgInput       = document.getElementById('msg-input');
+const sendBtn        = document.getElementById('send-btn');
+const attachBtn      = document.getElementById('attach-btn');
+const fileInput      = document.getElementById('file-input');
+const typingIndicator = document.getElementById('typing-indicator');
 
 // ── Utils ──
 const initial = name => name.charAt(0).toUpperCase();
 
 const avatarColor = name => {
-  const colors = ['#5865f2','#eb459e','#57f287','#fee75c','#ed4245','#3ba55d','#faa61a'];
+  const colors = ['#5865f2','#eb459e','#57f287','#3ba55d','#ed4245','#faa61a','#00b0f4'];
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
   return colors[Math.abs(h) % colors.length];
@@ -42,25 +54,46 @@ function setAvatar(el, name) {
   el.style.background = avatarColor(name);
 }
 
+function makeAvatar(name, size = 40) {
+  const el = document.createElement('div');
+  el.className = 'avatar';
+  el.style.cssText = `width:${size}px;height:${size}px;font-size:${size * 0.4}px`;
+  setAvatar(el, name);
+  return el;
+}
+
 function formatTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatSidebarTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso), now = new Date(), diff = now - d;
+  if (diff < 86400000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (diff < 604800000) return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 function formatDay(iso) {
-  const d = new Date(iso);
-  const today = new Date();
-  const diff = Math.floor((today - d) / 86400000);
+  const d = new Date(iso), diff = Math.floor((new Date() - d) / 86400000);
   if (diff === 0) return 'Today';
   if (diff === 1) return 'Yesterday';
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-// ── API helpers ──
+function formatLastSeen(iso) {
+  if (!iso) return '';
+  const d = new Date(iso), diff = new Date() - d;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `today at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+// ── API ──
 async function apiPost(path, body) {
   const res = await fetch(API + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   const data = await res.json();
@@ -76,19 +109,14 @@ async function apiGet(path) {
 }
 
 // ── Auth ──
-async function login(username) {
-  const existing = await apiGet(`/users/by-username/${encodeURIComponent(username)}`).catch(() => null);
-  if (existing) return existing;
-  return await apiPost('/users/register', { username });
-}
-
 authForm.addEventListener('submit', async e => {
   e.preventDefault();
   const username = authInput.value.trim();
   if (!username) return;
   authError.textContent = '';
   try {
-    me = await login(username);
+    const existing = await apiGet(`/users/by-username/${encodeURIComponent(username)}`).catch(() => null);
+    me = existing || await apiPost('/users/register', { username });
     localStorage.setItem('vibe_user', JSON.stringify(me));
     showApp();
   } catch (err) {
@@ -102,13 +130,10 @@ function showApp() {
   myUsername.textContent = me.username;
   setAvatar(myAvatar, me.username);
   connectWS();
-  loadUsers();
+  loadSidebar();
 }
 
-logoutBtn.addEventListener('click', () => {
-  localStorage.removeItem('vibe_user');
-  location.reload();
-});
+logoutBtn.addEventListener('click', () => { localStorage.removeItem('vibe_user'); location.reload(); });
 
 // ── WebSocket ──
 function connectWS() {
@@ -117,90 +142,214 @@ function connectWS() {
 
   ws.addEventListener('message', e => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'error') return;
-
-    const isActive =
-      peer &&
-      ((msg.type === 'sent'     && msg.receiver_id === peer.id) ||
-       (msg.type === 'received' && msg.sender_id   === peer.id));
-
-    if (isActive) appendMessage(msg);
-    else if (msg.type === 'received') markUnread(msg.sender_id);
+    switch (msg.type) {
+      case 'online_list':
+        onlineUsers = new Set(msg.user_ids);
+        refreshOnlineUI();
+        break;
+      case 'status':
+        msg.online ? onlineUsers.add(msg.user_id) : onlineUsers.delete(msg.user_id);
+        refreshOnlineUI();
+        if (peer?.id === msg.user_id) updatePeerStatus();
+        break;
+      case 'typing':
+        if (peer?.id === msg.sender_id) showTyping();
+        break;
+      case 'stop_typing':
+        if (peer?.id === msg.sender_id) hideTyping();
+        break;
+      case 'sent':
+        if (peer?.id === msg.receiver_id) appendMessage(msg);
+        upsertRecentChat(msg);
+        renderSidebar();
+        break;
+      case 'received':
+        if (peer?.id === msg.sender_id) { hideTyping(); appendMessage(msg); }
+        else unreadCounts[msg.sender_id] = (unreadCounts[msg.sender_id] || 0) + 1;
+        upsertRecentChat(msg);
+        renderSidebar();
+        break;
+    }
   });
 
-  ws.addEventListener('close', () => {
-    setTimeout(connectWS, 2000);
-  });
+  ws.addEventListener('close', () => setTimeout(connectWS, 2000));
 }
 
-// ── Users ──
-async function loadUsers() {
-  users = await apiGet('/users/');
-  renderUsers(users);
+// ── Sidebar ──
+async function loadSidebar() {
+  [users, recentChats] = await Promise.all([
+    apiGet('/users/'),
+    apiGet(`/messages/recent?user_id=${me.id}`).catch(() => []),
+  ]);
+  renderSidebar();
 }
 
-function renderUsers(list) {
+function renderSidebar() {
+  const query = searchInput.value.toLowerCase();
+  if (query) {
+    sidebarLabel.textContent = 'Search Results';
+    renderUsersList(users.filter(u => u.id !== me.id && u.username.toLowerCase().includes(query)));
+    return;
+  }
+  if (sidebarMode === 'users') {
+    sidebarLabel.textContent = 'New Chat';
+    renderUsersList(users.filter(u => u.id !== me.id));
+    return;
+  }
+  sidebarLabel.textContent = 'Messages';
+  recentChats.length > 0
+    ? renderChatList(recentChats)
+    : renderUsersList(users.filter(u => u.id !== me.id));
+}
+
+function renderChatList(chats) {
   usersList.innerHTML = '';
-  list
-    .filter(u => u.id !== me.id)
-    .forEach(u => {
-      const li = document.createElement('li');
-      if (peer && peer.id === u.id) li.classList.add('active');
+  chats.forEach(chat => {
+    const li = document.createElement('li');
+    li.className = 'chat-item' + (peer?.id === chat.user_id ? ' active' : '');
+    li.dataset.userId = chat.user_id;
 
-      const av = document.createElement('div');
-      av.className = 'avatar';
-      av.style.width = '36px'; av.style.height = '36px'; av.style.fontSize = '15px';
-      setAvatar(av, u.username);
+    const av = makeAvatar(chat.username);
+    if (onlineUsers.has(chat.user_id)) av.classList.add('online-ring');
 
-      const info = document.createElement('div');
-      info.style.display = 'flex'; info.style.flexDirection = 'column'; info.style.gap = '2px'; info.style.overflow = 'hidden';
+    const body = document.createElement('div');
+    body.className = 'chat-item-body';
 
-      const name = document.createElement('span');
-      name.className = 'name'; name.textContent = u.username;
+    const top = document.createElement('div');
+    top.className = 'chat-item-top';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'chat-item-name';
+    nameEl.textContent = chat.username;
+    const timeEl = document.createElement('span');
+    timeEl.className = 'chat-item-time' + (unreadCounts[chat.user_id] ? ' unread-time' : '');
+    timeEl.textContent = formatSidebarTime(chat.last_message_at);
+    top.append(nameEl, timeEl);
 
-      info.appendChild(name);
-      li.appendChild(av);
-      li.appendChild(info);
-      li.dataset.userId = u.id;
-      li.addEventListener('click', () => openChat(u));
-      usersList.appendChild(li);
-    });
+    const bottom = document.createElement('div');
+    bottom.className = 'chat-item-bottom';
+    const preview = document.createElement('span');
+    preview.className = 'chat-item-preview';
+    const prefix = chat.last_message_sender_id === me.id ? 'You: ' : '';
+    preview.textContent = chat.last_message_type === 'image'
+      ? prefix + '📷 Photo'
+      : prefix + (chat.last_message || '');
+
+    bottom.appendChild(preview);
+    const unread = unreadCounts[chat.user_id];
+    if (unread) {
+      const badge = document.createElement('span');
+      badge.className = 'unread-badge';
+      badge.textContent = unread;
+      bottom.appendChild(badge);
+    }
+
+    body.append(top, bottom);
+    li.append(av, body);
+    li.addEventListener('click', () => { sidebarMode = 'chats'; openChat({ id: chat.user_id, username: chat.username }); });
+    usersList.appendChild(li);
+  });
 }
 
-searchInput.addEventListener('input', () => {
-  const q = searchInput.value.toLowerCase();
-  renderUsers(q ? users.filter(u => u.username.toLowerCase().includes(q)) : users);
+function renderUsersList(list) {
+  usersList.innerHTML = '';
+  list.forEach(u => {
+    const li = document.createElement('li');
+    li.className = 'chat-item' + (peer?.id === u.id ? ' active' : '');
+    li.dataset.userId = u.id;
+
+    const av = makeAvatar(u.username);
+    if (onlineUsers.has(u.id)) av.classList.add('online-ring');
+
+    const body = document.createElement('div');
+    body.className = 'chat-item-body';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'chat-item-name';
+    nameEl.style.lineHeight = '40px';
+    nameEl.textContent = u.username;
+    body.appendChild(nameEl);
+
+    li.append(av, body);
+    li.addEventListener('click', () => { sidebarMode = 'chats'; openChat(u); });
+    usersList.appendChild(li);
+  });
+}
+
+newChatBtn.addEventListener('click', () => {
+  sidebarMode = sidebarMode === 'users' ? 'chats' : 'users';
+  searchInput.value = '';
+  renderSidebar();
+});
+searchInput.addEventListener('input', renderSidebar);
+
+// ── Online status ──
+function refreshOnlineUI() {
+  document.querySelectorAll('[data-user-id]').forEach(li => {
+    const uid = parseInt(li.dataset.userId);
+    const av = li.querySelector('.avatar');
+    if (av) av.classList.toggle('online-ring', onlineUsers.has(uid));
+  });
+}
+
+function updatePeerStatus() {
+  if (!peer) return;
+  if (onlineUsers.has(peer.id)) {
+    peerStatus.textContent = 'online';
+    peerStatus.className = 'peer-status online';
+    peerOnlineDot.classList.remove('hidden');
+  } else {
+    peerOnlineDot.classList.add('hidden');
+    apiGet(`/users/${peer.id}`).then(u => {
+      peerStatus.textContent = u.last_seen ? `last seen ${formatLastSeen(u.last_seen)}` : '';
+      peerStatus.className = 'peer-status';
+    }).catch(() => {});
+  }
+}
+
+// ── Typing ──
+msgInput.addEventListener('input', () => {
+  if (!peer || ws?.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'typing', receiver_id: peer.id }));
+  clearTimeout(myTypingTimer);
+  myTypingTimer = setTimeout(() => {
+    if (ws?.readyState === WebSocket.OPEN)
+      ws.send(JSON.stringify({ type: 'stop_typing', receiver_id: peer.id }));
+  }, 1500);
 });
 
-function markUnread(senderId) {
-  const li = usersList.querySelector(`[data-user-id="${senderId}"]`);
-  if (!li) return;
-  let badge = li.querySelector('.unread');
-  if (!badge) {
-    badge = document.createElement('span');
-    badge.className = 'unread';
-    li.appendChild(badge);
-  }
-  badge.textContent = (parseInt(badge.textContent || '0') + 1).toString();
+function showTyping() {
+  typingIndicator.classList.remove('hidden');
+  clearTimeout(typingHideTimer);
+  typingHideTimer = setTimeout(hideTyping, 3000);
+}
+function hideTyping() { typingIndicator.classList.add('hidden'); }
+
+// ── Recent chats ──
+function upsertRecentChat(msg) {
+  const otherId = msg.sender_id === me.id ? msg.receiver_id : msg.sender_id;
+  const other = users.find(u => u.id === otherId);
+  if (!other) return;
+  const idx = recentChats.findIndex(c => c.user_id === otherId);
+  const entry = {
+    user_id: otherId, username: other.username,
+    last_message: msg.content, last_message_type: msg.message_type,
+    last_message_at: msg.created_at, last_message_sender_id: msg.sender_id,
+  };
+  if (idx >= 0) recentChats.splice(idx, 1);
+  recentChats.unshift(entry);
 }
 
 // ── Chat ──
 async function openChat(user) {
   peer = user;
+  delete unreadCounts[user.id];
 
-  // Update sidebar active state
   usersList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
-  const li = usersList.querySelector(`[data-user-id="${user.id}"]`);
-  if (li) {
-    li.classList.add('active');
-    const badge = li.querySelector('.unread');
-    if (badge) badge.remove();
-  }
+  usersList.querySelector(`[data-user-id="${user.id}"]`)?.classList.add('active');
 
   setAvatar(peerAvatar, user.username);
   peerName.textContent = user.username;
-  peerStatus.textContent = '';
-  peerStatus.className = 'peer-status';
+  hideTyping();
+  updatePeerStatus();
 
   emptyState.classList.add('hidden');
   conversation.classList.remove('hidden');
@@ -209,6 +358,7 @@ async function openChat(user) {
 
   const history = await apiGet(`/messages/${user.id}?user_id=${me.id}&limit=100`);
   renderHistory(history.messages);
+  renderSidebar();
 }
 
 function renderHistory(messages) {
@@ -219,8 +369,7 @@ function renderHistory(messages) {
     if (day !== lastDay) {
       const div = document.createElement('div');
       div.className = 'day-divider'; div.textContent = day;
-      messagesEl.appendChild(div);
-      lastDay = day;
+      messagesEl.appendChild(div); lastDay = day;
     }
     appendMessage(msg, false);
   });
@@ -234,30 +383,53 @@ function appendMessage(msg, scroll = true) {
 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
-  bubble.textContent = msg.content;
+
+  if (msg.message_type === 'image' && msg.media_data) {
+    const img = document.createElement('img');
+    img.src = msg.media_data; img.className = 'msg-image'; img.loading = 'lazy';
+    img.addEventListener('click', () => window.open(msg.media_data, '_blank'));
+    bubble.appendChild(img);
+  } else {
+    bubble.textContent = msg.content;
+  }
 
   const time = document.createElement('div');
-  time.className = 'msg-time';
-  time.textContent = formatTime(msg.created_at);
+  time.className = 'msg-time'; time.textContent = formatTime(msg.created_at);
 
-  row.appendChild(bubble);
-  row.appendChild(time);
+  row.append(bubble, time);
   messagesEl.appendChild(row);
   if (scroll) scrollBottom();
 }
 
-function scrollBottom() {
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
+function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
 
-// ── Send message ──
+// ── Send text ──
 msgForm.addEventListener('submit', e => {
   e.preventDefault();
   const content = msgInput.value.trim();
-  if (!content || !peer || !ws || ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ content, receiver_id: peer.id }));
+  if (!content || !peer || ws?.readyState !== WebSocket.OPEN) return;
+  clearTimeout(myTypingTimer);
+  ws.send(JSON.stringify({ type: 'stop_typing', receiver_id: peer.id }));
+  ws.send(JSON.stringify({ content, receiver_id: peer.id, message_type: 'text' }));
   msgInput.value = '';
   msgInput.focus();
+});
+
+// ── Send image ──
+attachBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file || !peer || ws?.readyState !== WebSocket.OPEN) return;
+  if (!file.type.startsWith('image/')) return alert('Only images are supported');
+  if (file.size > 2 * 1024 * 1024) return alert('Image too large (max 2 MB)');
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    ws.send(JSON.stringify({ content: '', receiver_id: peer.id, message_type: 'image', media_data: reader.result }));
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
 });
 
 // ── Boot ──
@@ -265,11 +437,8 @@ const saved = localStorage.getItem('vibe_user');
 if (saved) {
   try {
     me = JSON.parse(saved);
-    // Re-validate user still exists
     apiGet(`/users/${me.id}`)
       .then(u => { me = u; showApp(); })
       .catch(() => { localStorage.removeItem('vibe_user'); });
-  } catch {
-    localStorage.removeItem('vibe_user');
-  }
+  } catch { localStorage.removeItem('vibe_user'); }
 }

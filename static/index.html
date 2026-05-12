@@ -8,28 +8,21 @@
 </head>
 <body>
 
-  <!-- Registration overlay -->
+  <!-- Auth overlay -->
   <div id="auth-overlay" class="overlay">
     <div class="auth-card">
       <div class="auth-logo">💬</div>
       <h1>Vibe Chat</h1>
       <p class="auth-subtitle">Enter a username to get started</p>
       <form id="auth-form">
-        <input
-          id="auth-input"
-          type="text"
-          placeholder="Your username"
-          maxlength="50"
-          autocomplete="off"
-          autofocus
-        />
+        <input id="auth-input" type="text" placeholder="Your username" maxlength="50" autocomplete="off" autofocus />
         <button type="submit">Join</button>
       </form>
       <p id="auth-error" class="auth-error"></p>
     </div>
   </div>
 
-  <!-- Main app -->
+  <!-- App -->
   <div id="app" class="app hidden">
 
     <!-- Sidebar -->
@@ -39,30 +32,45 @@
           <div class="avatar" id="my-avatar"></div>
           <span id="my-username"></span>
         </div>
-        <button id="logout-btn" class="icon-btn" title="Change user">↩</button>
+        <div class="sidebar-actions">
+          <button id="new-chat-btn" class="icon-btn" title="New chat">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button id="logout-btn" class="icon-btn" title="Change user">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="search-wrap">
-        <input id="search-input" type="text" placeholder="Search users…" autocomplete="off" />
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="search-input" type="text" placeholder="Search…" autocomplete="off" />
       </div>
 
-      <div class="users-label">People</div>
+      <div class="section-label" id="sidebar-label">Messages</div>
       <ul id="users-list" class="users-list"></ul>
     </aside>
 
-    <!-- Chat area -->
+    <!-- Chat -->
     <main class="chat">
 
-      <!-- Empty state -->
       <div id="empty-state" class="empty-state">
         <div class="empty-icon">💬</div>
         <p>Select someone to start chatting</p>
       </div>
 
-      <!-- Conversation -->
       <div id="conversation" class="conversation hidden">
         <header class="chat-header">
-          <div class="avatar" id="peer-avatar"></div>
+          <div class="avatar-wrap">
+            <div class="avatar" id="peer-avatar"></div>
+            <span class="online-dot hidden" id="peer-online-dot"></span>
+          </div>
           <div class="chat-header-info">
             <span id="peer-name"></span>
             <span id="peer-status" class="peer-status"></span>
@@ -71,17 +79,23 @@
 
         <div id="messages" class="messages"></div>
 
+        <div id="typing-indicator" class="typing-indicator hidden">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+
         <form id="msg-form" class="msg-form">
-          <input
-            id="msg-input"
-            type="text"
-            placeholder="Type a message…"
-            autocomplete="off"
-          />
+          <button type="button" id="attach-btn" class="attach-btn" title="Send image">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+          <input type="file" id="file-input" accept="image/*" class="hidden" />
+          <input id="msg-input" type="text" placeholder="Type a message…" autocomplete="off" />
           <button type="submit" id="send-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
           </button>
         </form>
